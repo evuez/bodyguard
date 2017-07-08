@@ -40,7 +40,7 @@ end
 To implement a policy, add `@behaviour Bodyguard.Policy` to a context, then define `authorize(action, user, params)` callbacks, which must return:
 
 * `:ok` to permit the action, or
-* `{:error, reason}` to deny the action (most commonly `{:error, :unauthorized}`)
+* `{:error, reason}` to deny the action (most commonly `{:error, :forbidden}`)
 
 The `action` argument, an atom, might map one-to-one with the actual context function name, or it can be more broad (e.g. `:manage_post` or `:read_post`) to indicate a rule encompassing a wider range of actions.
 
@@ -60,7 +60,7 @@ defmodule MyApp.Blog do
     and user_id == post_user_id, do: :ok
 
   # Catch-all: deny everything else
-  def authorize(_, _, _), do: {:error, :unauthorized}
+  def authorize(_, _, _), do: {:error, :forbidden}
 end
 ```
 
@@ -85,7 +85,7 @@ Phoenix 1.3 introduces the `action_fallback` controller macro. This is the recom
 
 The fallback controller should handle any `{:error, reason}` results returned by `authorize/3` callbacks.
 
-Normally, authorization failure results in `{:error, :unauthorized}`. If you wish to deny access without leaking the existence of a particular resource, consider returning `{:error, :not_found}` instead, and handle it separately in the fallback controller.
+Normally, authorization failure results in `{:error, :forbidden}`. If you wish to deny access without leaking the existence of a particular resource, consider returning `{:error, :not_found}` instead, and handle it separately in the fallback controller.
 
 ```elixir
 defmodule MyApp.Web.PostController do
@@ -105,7 +105,7 @@ end
 defmodule MyApp.Web.FallbackController do
   use MyApp.Web, :controller
 
-  def call(conn, {:error, :unauthorized}) do
+  def call(conn, {:error, :forbidden}) do
     conn
     |> put_status(:forbidden)
     |> render(MyApp.Web.ErrorView, :"403")
@@ -154,7 +154,7 @@ Testing is pretty straightforward – use the `Bodyguard` top-level API.
 
 ```elixir
 assert :ok == Bodyguard.permit(MyApp.Blog, :successful_action, user)
-assert {:error, :unauthorized} == Bodyguard.permit(MyApp.Blog, :failing_action, user)
+assert {:error, :forbidden} == Bodyguard.permit(MyApp.Blog, :failing_action, user)
 
 assert Bodyguard.permit(MyApp.Blog, :successful_action, user)
 refute Bodyguard.permit(MyApp.Blog, :failing_action, user)
